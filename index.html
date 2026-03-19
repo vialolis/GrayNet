@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GrayNet Launcher</title>
+    <style>
+        :root {
+            --bg: #000000;
+            --panel: #101010;
+            --panel2: #151515;
+            --border: #221923;
+            --text: #ebebeb;
+            --sub: #636363;
+            --accent: #dd188e;
+            --accent2: #e960fa;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #constellation {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+
+        .hub {
+            background: rgba(0, 0, 0, 0.50);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 0 20px rgba(221, 24, 142, 0.1);
+            backdrop-filter: blur(0px);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .title {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: var(--accent);
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px var(--accent2);
+        }
+
+        .title .white {
+            color: white;
+        }
+
+        .subtitle {
+            color: var(--sub);
+            font-size: 1.1em;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .btn {
+            background: var(--panel2);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+            font-family: inherit;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn:hover {
+            border-color: var(--accent);
+            box-shadow: 0 0 10px rgba(221, 24, 142, 0.3);
+        }
+
+        .btn.accent {
+            background: var(--accent);
+            color: var(--bg);
+        }
+
+        .btn.accent:hover {
+            background: var(--accent2);
+            box-shadow: 0 0 15px rgba(233, 96, 250, 0.5);
+        }
+
+        .btn.danger {
+            border-color: #d9534f;
+        }
+
+        .btn.danger:hover {
+            border-color: #c9302c;
+            box-shadow: 0 0 10px rgba(217, 83, 79, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .status {
+            text-align: center;
+            padding: 15px;
+            background: var(--panel2);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-weight: bold;
+            color: var(--accent);
+        }
+
+        .status.error {
+            color: #d9534f;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="constellation"></canvas>
+    <div class="hub">
+        <div class="header">
+            <div class="title"><span class="white">Gray</span>Net Launcher</div>
+            <div class="subtitle">I2P Network Control Center</div>
+        </div>
+
+        <div class="controls">
+            <button id="startBtn" class="btn accent">Start I2P</button>
+            <button id="stopBtn" class="btn danger">Stop I2P</button>
+            <button id="refreshBtn" class="btn">Refresh Status</button>
+            <button id="browserBtn" class="btn">Open Browser</button>
+        </div>
+
+        <div id="status" class="status">Status: Initializing...</div>
+    </div>
+
+    <script>
+        const { invoke } = window.__TAURI__.tauri;
+
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const refreshBtn = document.getElementById('refreshBtn');
+        const browserBtn = document.getElementById('browserBtn');
+        const statusDiv = document.getElementById('status');
+
+        async function updateStatus() {
+            try {
+                const status = await invoke('get_status');
+                statusDiv.textContent = `Status: ${status}`;
+                statusDiv.classList.remove('error');
+                startBtn.disabled = status === 'Running';
+                stopBtn.disabled = status === 'Stopped';
+            } catch (error) {
+                console.error('Error getting status:', error);
+                statusDiv.textContent = 'Status: Error';
+                statusDiv.classList.add('error');
+            }
+        }
+
+        startBtn.addEventListener('click', async () => {
+            try {
+                const result = await invoke('start_i2pd');
+                statusDiv.textContent = `Status: ${result}`;
+                statusDiv.classList.remove('error');
+                updateStatus();
+            } catch (error) {
+                statusDiv.textContent = `Status: Error - ${error}`;
+                statusDiv.classList.add('error');
+                console.error(error);
+            }
+        });
+
+        stopBtn.addEventListener('click', async () => {
+            try {
+                const result = await invoke('stop_i2pd');
+                statusDiv.textContent = `Status: ${result}`;
+                statusDiv.classList.remove('error');
+                updateStatus();
+            } catch (error) {
+                statusDiv.textContent = `Status: Error - ${error}`;
+                statusDiv.classList.add('error');
+                console.error(error);
+            }
+        });
+
+        refreshBtn.addEventListener('click', updateStatus);
+
+        browserBtn.addEventListener('click', async () => {
+            try {
+                const result = await invoke('open_browser');
+                alert(result);
+            } catch (error) {
+                alert('Error: ' + error);
+            }
+        });
+
+        // Constellation Effect
+        const canvas = document.getElementById('constellation');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        const particleCount = 100;
+        const maxDistance = 120;
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        function createParticles() {
+            particles = [];
+            for (let i = 0; i < particleCount; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    vx: (Math.random() - 0.5) * 0.5,
+                    vy: (Math.random() - 0.5) * 0.5,
+                    size: Math.random() * 2 + 1
+                });
+            }
+        }
+
+        function updateParticles() {
+            particles.forEach(p => {
+                p.x += p.vx;
+                p.y += p.vy;
+
+                if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+                if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+            });
+        }
+
+        function drawParticles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw lines
+            ctx.strokeStyle = 'rgba(221, 24, 142, 0.1)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < particles.length; i++) {
+                for (let j = i + 1; j < particles.length; j++) {
+                    const dx = particles[i].x - particles[j].x;
+                    const dy = particles[i].y - particles[j].y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < maxDistance) {
+                        ctx.beginPath();
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(particles[j].x, particles[j].y);
+                        ctx.stroke();
+                    }
+                }
+            }
+
+            // Draw particles
+            ctx.fillStyle = 'rgba(221, 24, 142, 0.8)';
+            particles.forEach(p => {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        function animate() {
+            updateParticles();
+            drawParticles();
+            requestAnimationFrame(animate);
+        }
+
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+            createParticles();
+        });
+
+        resizeCanvas();
+        createParticles();
+        animate();
+
+        // Initial status update
+        updateStatus();
+
+        // Show I2P warning on load
+        window.addEventListener('load', () => {
+            alert("I2P traffic may take several minutes to initialize. Please wait before accessing .i2p sites.");
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+[package]
+name = "graynet"
+version = "0.1.0"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "1.5", features = [] }
+ico = "0.3"
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+tauri = { version = "1.5", features = ["shell-open"] }
+dirs = "5.0"
+sysinfo = "0.30"
+
+[features]
+# this feature is used for production builds or when `devPath` points to the filesystem and the built-in dev server is disabled.
+# If you use cargo directly instead of tauri's cli you can use this feature flag to switch between tauri's `dev` and `production` builds.
+# DO NOT REMOVE!!
+custom-protocol = [ "tauri/custom-protocol" ]
