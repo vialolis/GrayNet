@@ -61,3 +61,51 @@ GrayNet is a custom I2P ecosystem built on top of i2pd (the C++ I2P implementati
 ---
 
 ## Architecture
+
+
+GrayNet Launcher (Tauri + Rust)
+├── i2pd.exe — I2P daemon (background)
+├── LibreWolf — downloaded on first run
+│ ├── proxy.pac — routes .i2p/.gn via proxy (port 4444)
+│ └── prefs.js — disables WebRTC, telemetry, DoH
+└── addresses.csv — pre-seeded address book
+
+
+### Custom `.gn` TLD
+
+GrayNet uses a patched version of i2pd that supports `.gn` domains. Resolution is handled via a `zones.txt` file (`hostname=b32address`) loaded at startup.
+
+---
+
+## Configuration
+
+All data is stored in `%APPDATA%\GrayNet\`:
+
+
+GrayNet
+bin\i2pd.exe
+browser
+config\i2pd.conf
+config\addresses.csv
+i2pd
+logs\i2pd.log
+proxy.pac
+
+
+---
+
+## Privacy Notes
+
+- `.i2p` and `.gn` traffic is routed through i2pd
+- Clearweb traffic goes direct (not anonymized)
+- LibreWolf has WebRTC disabled to prevent IP leaks
+- No telemetry is collected by GrayNet
+- JavaScript is enabled (required for many I2P services)
+
+---
+
+## License
+
+GrayNet launcher — BSD 3-Clause  
+i2pd — BSD 3-Clause  
+LibreWolf — MPL-2.0
