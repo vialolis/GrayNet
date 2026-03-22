@@ -1,21 +1,54 @@
 [package]
 name = "graynet"
 version = "0.1.0"
+description = "GrayNet - I2P Network Launcher"
+authors = ["vialolis"]
 edition = "2021"
+
+[profile.dev]
+incremental = true
+
+[profile.release]
+opt-level = 3
+lto = true
+strip = true
+
+[[bin]]
+name = "graynet"
+path = "src/main.rs"
+
+[dependencies]
+tauri = { version = "1.6", features = [
+    "shell-open",
+    "path-all",
+    "system-tray",
+    "custom-protocol",
+] }
+
+futures-util = "0.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+dirs = "5"
+log = "0.4"
+env_logger = "0.11"
+sysinfo = "0.29"
+
+# HTTP клиент для скачивания LibreWolf
+# stream фича — читаем ответ по кускам для прогресс-бара
+reqwest = { version = "0.11", features = ["stream"] }
+
+# Распаковка ZIP архива LibreWolf portable
+zip = "0.6"
+
+# Async runtime — нужен для reqwest
+tokio = { version = "1", features = ["full"] }
+
+[target.'cfg(not(target_os = "windows"))'.dependencies]
+libc = "0.2"
 
 [build-dependencies]
 tauri-build = { version = "1.5", features = [] }
 ico = "0.3"
 
-[dependencies]
-serde_json = "1.0"
-serde = { version = "1.0", features = ["derive"] }
-tauri = { version = "1.5", features = ["shell-open"] }
-dirs = "5.0"
-sysinfo = "0.30"
-
 [features]
-# this feature is used for production builds or when `devPath` points to the filesystem and the built-in dev server is disabled.
-# If you use cargo directly instead of tauri's cli you can use this feature flag to switch between tauri's `dev` and `production` builds.
-# DO NOT REMOVE!!
-custom-protocol = [ "tauri/custom-protocol" ]
+custom-protocol = ["tauri/custom-protocol"]

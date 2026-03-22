@@ -1,0 +1,157 @@
+// config.rs
+// Управление путями и проверка зависимостей.
+
+use std::path::PathBuf;
+use crate::error::{AppError, AppResult};
+
+/// Имя бинаря i2pd зависит от платформы.
+fn i2pd_binary_name() -> &'static str {
+    if cfg!(target_os = "windows") {
+        "i2pd.exe"
+    } else {
+        "i2pd"
+    }
+}
+
+/// Корневая директория GrayNet.
+/// В релизе — рядом с exe (AppData\Local\GrayNet\).
+/// Фолбек — Roaming для совместимости.
+pub fn graynet_data_dir() -> AppResult<PathBuf> {
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(exe_dir) = exe.parent() {
+            let local_data = exe_dir.to_path_buf();
+            if local_data.exists() {
+                return Ok(local_data);
+            }
+        }
+    }
+    dirs::data_dir()
+        .ok_or_else(|| AppError::Other("Could not find system data directory".to_string()))
+        .map(|d| d.join("GrayNet"))
+}
+
+/// Путь к i2pd бинарю.
+pub fn get_i2pd_path(app_handle: &tauri::AppHandle) -> AppResult<PathBuf> {
+    let binary_name = i2pd_binary_name();
+
+    // Бандл
+    if let Some(bundled) = app_handle
+        .path_resolver()
+        .resolve_resource(format!("binaries/{}", binary_name))
+    {
+        if bundled.exists() {
+            return Ok(bundled);
+        }
+    }
+
+    // Data dir (рядом с exe)
+    let path = graynet_data_dir()?.join("bin").join(binary_name);
+    if path.exists() {
+        Ok(path)
+    } else {
+        Err(AppError::BinaryNotFound(path.display().to_string()))
+    }
+}
+
+/// Путь к LibreWolf.
+/// Portable ZIP распаковывается как browser\librewolf-{version}\librewolf.exe
+/// Ищем librewolf.exe в любой подпапке browser\ — не зависим от версии.
+pub fn get_browser_path(app_handle: &tauri::AppHandle) -> AppResult<PathBuf> {
+    let browser_dir = graynet_data_dir()?.join("browser");
+
+    // Ищем в подпапках — LibreWolf portable распаковывается как
+    // browser\librewolf-{version}\LibreWolf-Portable.exe
+    if let Ok(entries) = std::fs::read_dir(&browser_dir) {
+        for entry in entries.flatten() {
+            if entry.path().is_dir() {
+                // Пробуем оба возможных имени
+                for name in &["LibreWolf-Portable.exe", "librewolf.exe"] {
+                    let exe = entry.path().join(name);
+                    if exe.exists() {
+                        return Ok(exe);
+                    }
+                }
+            }
+        }
+    }
+
+    // Фолбек — прямо в browser\ (старая структура)
+    let legacy = browser_dir.join("LibreWolf-Portable.exe");
+    if legacy.exists() {
+        return Ok(legacy);
+    }
+
+    // Бандл
+    if let Some(bundled) = app_handle
+        .path_resolver()
+        .resolve_resource("binaries/LibreWolf-Portable.exe")
+    {
+        if bundled.exists() {
+            return Ok(bundled);
+        }
+    }
+
+    Err(AppError::BinaryNotFound(
+        browser_dir.display().to_string()
+    ))
+}
+
+/// Путь к конфигу i2pd.
+pub fn get_i2pd_config_path(app_handle: &tauri::AppHandle) -> AppResult<PathBuf> {
+    if let Some(bundled) = app_handle
+        .path_resolver()
+        .resolve_resource("config/i2pd.conf")
+    {
+        if bundled.exists() {
+            return Ok(bundled);
+        }
+    }
+
+    let path = graynet_data_dir()?.join("config").join("i2pd.conf");
+    if path.exists() {
+        Ok(path)
+    } else {
+        Err(AppError::ConfigNotFound(path.display().to_string()))
+    }
+}
+
+/// Путь к proxy.pac файлу.
+pub fn get_pac_path() -> AppResult<PathBuf> {
+    Ok(graynet_data_dir()?.join("proxy.pac"))
+}
+
+/// Путь к профилю браузера.
+pub fn get_browser_profile_path() -> AppResult<PathBuf> {
+    Ok(graynet_data_dir()?.join("browser").join("profile"))
+}
+
+/// Результат проверки зависимостей.
+#[derive(serde::Serialize, Debug)]
+pub struct DependencyCheck {
+    pub i2pd_found: bool,
+    pub browser_found: bool,
+    pub config_found: bool,
+    pub missing: Vec<String>,
+}
+
+/// Проверить все зависимости разом.
+pub fn check_dependencies(app_handle: &tauri::AppHandle) -> DependencyCheck {
+    let mut missing = Vec::new();
+
+    let i2pd_found = match get_i2pd_path(app_handle) {
+        Ok(p) => { log::info!("i2pd found at: {}", p.display()); true }
+        Err(e) => { missing.push(e.to_string()); false }
+    };
+
+    let browser_found = match get_browser_path(app_handle) {
+        Ok(p) => { log::info!("Browser found at: {}", p.display()); true }
+        Err(e) => { missing.push(e.to_string()); false }
+    };
+
+    let config_found = match get_i2pd_config_path(app_handle) {
+        Ok(p) => { log::info!("Config found at: {}", p.display()); true }
+        Err(e) => { log::warn!("Config not found (will use defaults): {}", e); false }
+    };
+
+    DependencyCheck { i2pd_found, browser_found, config_found, missing }
+}

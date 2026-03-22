@@ -3,204 +3,210 @@
     windows_subsystem = "windows"
 )]
 
-use std::path::PathBuf;
-use std::process::{Child, Command};
-use std::sync::Mutex;
-use std::fs;
-use dirs;
-use sysinfo::System;
+mod error;
+mod state;
+mod config;
+mod i2pd;
+mod browser;
+mod setup;
+mod download;
 
-static I2PD_PROCESS: Mutex<Option<Child>> = Mutex::new(None);
+use sysinfo::SystemExt;
+use sysinfo::PidExt;
+use tauri::{
+    Manager,
+    SystemTray, SystemTrayMenu, SystemTrayMenuItem, CustomMenuItem,
+    SystemTrayEvent,
+};
+use state::AppState;
 
-fn setup_graynet_environment() -> Result<(), String> {
-    let data_dir = dirs::data_dir().ok_or("Could not find data directory")?;
-    let graynet_dir = data_dir.join("GrayNet");
+// ─── Tauri команды ────────────────────────────────────────────────────────────
 
-    // Create GrayNet directory
-    fs::create_dir_all(&graynet_dir).map_err(|e| format!("Failed to create GrayNet dir: {}", e))?;
-
-    // Create subdirs
-    fs::create_dir_all(graynet_dir.join("config")).map_err(|e| format!("Failed to create config dir: {}", e))?;
-    fs::create_dir_all(graynet_dir.join("logs")).map_err(|e| format!("Failed to create logs dir: {}", e))?;
-    fs::create_dir_all(graynet_dir.join("bin")).map_err(|e| format!("Failed to create bin dir: {}", e))?;
-    fs::create_dir_all(graynet_dir.join("browser")).map_err(|e| format!("Failed to create browser dir: {}", e))?;
-
-    // Generate proxy.pac
-    let pac_path = graynet_dir.join("proxy.pac");
-    if !pac_path.exists() {
-        let pac_content = r#"function FindProxyForURL(url, host) {
-
-    if (dnsDomainIs(host, ".i2p"))
-        return "PROXY 127.0.0.1:4444";
-
-    if (dnsDomainIs(host, ".gn"))
-        return "PROXY 127.0.0.1:4444";
-
-    return "DIRECT";
-}"#;
-        fs::write(&pac_path, pac_content).map_err(|e| format!("Failed to write proxy.pac: {}", e))?;
-    }
-
-    Ok(())
-}
-
-fn launch_librewolf() -> Result<String, String> {
-    let data_dir = dirs::data_dir().ok_or("Could not find data directory")?;
-    let graynet_dir = data_dir.join("GrayNet");
-    let browser_exe = graynet_dir.join("browser").join("LibreWolf-Portable.exe");
-    let profile_dir = graynet_dir.join("browser").join("profile");
-
-    // Ensure profile dir exists
-    fs::create_dir_all(&profile_dir).map_err(|e| format!("Failed to create profile dir: {}", e))?;
-
-    // Get PAC path
-    let pac_path = graynet_dir.join("proxy.pac");
-    let pac_url = format!("file:///{}", pac_path.display().to_string().replace("\\", "/"));
-
-    // Create prefs.js
-    let prefs_path = profile_dir.join("prefs.js");
-    let prefs_content = format!(r#"user_pref("network.proxy.type", 2);
-user_pref("network.proxy.autoconfig_url", "{}");
-user_pref("dom.security.https_only_mode", true);
-user_pref("dom.security.https_only_mode_ever_enabled", true);
-user_pref("dom.security.https_only_mode_pbm", true);
-user_pref("dom.security.https_only_mode_excluded_hosts", ".i2p,.gn");
-"#, pac_url);
-    fs::write(&prefs_path, prefs_content).map_err(|e| format!("Failed to write prefs.js: {}", e))?;
-
-    // Launch browser
-    Command::new(&browser_exe)
-        .arg("-profile")
-        .arg(&profile_dir)
-        .spawn()
-        .map_err(|e| format!("Failed to launch LibreWolf: {}", e))?;
-
-    Ok("LibreWolf launched".to_string())
-}
-
-fn find_i2pd_exe() -> Result<PathBuf, String> {
-    let data_dir = dirs::data_dir().ok_or("Could not find data directory")?;
-    let i2pd_path = data_dir.join("GrayNet").join("bin").join("i2pd.exe");
-    if i2pd_path.exists() {
-        Ok(i2pd_path)
-    } else {
-        Err(format!("i2pd.exe not found at: {}", i2pd_path.display()))
-    }
-}
-
-fn resolve_config_path(_exe_path: &PathBuf) -> Result<PathBuf, String> {
-    let data_dir = dirs::data_dir().ok_or("Could not find data directory")?;
-    let config_path = data_dir.join("GrayNet").join("config").join("i2pd.conf");
-    if config_path.exists() {
-        Ok(config_path)
-    } else {
-        Err(format!(
-            "config file not found at: {}",
-            config_path.display()
-        ))
-    }
+#[tauri::command]
+fn start_i2pd(
+    app_handle: tauri::AppHandle,
+    state: tauri::State<AppState>,
+) -> Result<String, error::AppError> {
+    i2pd::start(&app_handle, &state)
 }
 
 #[tauri::command]
-fn start_i2pd() -> Result<String, String> {
-    let mut process_lock = I2PD_PROCESS.lock().unwrap();
-    if process_lock.is_some() || find_i2pd_pid().is_some() {
-        return Err("i2pd is already running".to_string());
-    }
-
-    let exe_path = find_i2pd_exe()?;
-    let config_path = resolve_config_path(&exe_path)?;
-
-    let child = Command::new(&exe_path)
-        .arg("--conf")
-        .arg(&config_path)
-        .spawn()
-        .map_err(|e| format!("Failed to start i2pd: {}", e))?;
-
-    *process_lock = Some(child);
-    Ok(format!("i2pd started (exe={})", exe_path.display()))
+fn stop_i2pd(
+    state: tauri::State<AppState>,
+) -> Result<String, error::AppError> {
+    i2pd::stop(&state)
 }
 
 #[tauri::command]
-fn stop_i2pd() -> Result<String, String> {
-    let mut process_lock = I2PD_PROCESS.lock().unwrap();
-    if let Some(mut child) = process_lock.take() {
-        child.kill().map_err(|e| format!("Failed to stop i2pd: {}", e))?;
-        return Ok("i2pd stopped".to_string());
-    }
+fn get_status(
+    state: tauri::State<AppState>,
+) -> state::StatusResponse {
+    i2pd::get_status(&state)
+}
 
-    // If we don't have a tracked handle, attempt to stop any running i2pd process.
-    if let Some(pid) = find_i2pd_pid() {
-        let mut system = System::new_all();
-        system.refresh_process(pid);
-        if let Some(process) = system.process(pid) {
-            if process.kill() {
-                return Ok("i2pd stopped".to_string());
-            }
+#[tauri::command]
+fn open_browser(
+    app_handle: tauri::AppHandle,
+) -> Result<String, error::AppError> {
+    browser::launch(&app_handle)
+}
+
+#[tauri::command]
+fn check_deps(
+    app_handle: tauri::AppHandle,
+) -> config::DependencyCheck {
+    config::check_dependencies(&app_handle)
+}
+
+// ─── System Tray ──────────────────────────────────────────────────────────────
+
+fn build_tray_menu() -> SystemTrayMenu {
+    let show    = CustomMenuItem::new("show",    "Open GrayNet");
+    let browser = CustomMenuItem::new("browser", "Open I2P Browser");
+    let quit    = CustomMenuItem::new("quit",    "Quit (stop I2P)");
+
+    SystemTrayMenu::new()
+        .add_item(show)
+        .add_item(browser)
+        .add_native_item(SystemTrayMenuItem::Separator)
+        .add_item(quit)
+}
+
+fn handle_tray_event(app: &tauri::AppHandle, event: SystemTrayEvent) {
+    match event {
+        SystemTrayEvent::DoubleClick { .. } => {
+            show_window(app);
         }
-    }
 
-    Err("i2pd is not running".to_string())
+        SystemTrayEvent::MenuItemClick { id, .. } => match id.as_str() {
+            "show" => {
+                show_window(app);
+            }
+            "browser" => {
+                if let Err(e) = browser::launch(app) {
+                    log::error!("Failed to launch browser from tray: {}", e);
+                }
+            }
+            "quit" => {
+                log::info!("Quit from tray — stopping i2pd...");
+                let state = app.state::<AppState>();
+                let mut lock = state.i2pd_process.lock().unwrap();
+                if let Some(ref mut child) = *lock {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                }
+                *lock = None;
+                drop(lock);
+                // Удаляем lock файл при выходе
+                let lock_path = std::env::temp_dir().join("graynet_running.lock");
+                let _ = std::fs::remove_file(&lock_path);
+                std::process::exit(0);
+            }
+            _ => {}
+        },
+
+        _ => {}
+    }
 }
 
-fn find_i2pd_pid() -> Option<sysinfo::Pid> {
-    let mut system = System::new_all();
-    system.refresh_processes();
-    system.processes().values().find_map(|p| {
-        let name = p.name().to_ascii_lowercase();
-        if name == "i2pd.exe" || name == "i2pd" {
-            Some(p.pid())
-        } else {
-            None
-        }
-    })
+fn show_window(app: &tauri::AppHandle) {
+    if let Some(window) = app.get_window("main") {
+        let _ = window.show();
+        let _ = window.set_focus();
+        let _ = window.unminimize();
+    }
 }
 
 #[tauri::command]
-fn get_status() -> String {
-    let mut process_lock = I2PD_PROCESS.lock().unwrap();
-
-    // If we have a tracked child, check if it's still running.
-    if let Some(child) = process_lock.as_mut() {
-        match child.try_wait() {
-            Ok(Some(_status)) => {
-                // process exited
-                *process_lock = None;
-            }
-            Ok(None) => {
-                return "Running".to_string();
-            }
-            Err(_) => {
-                // If we can't check, but handle exists, assume running.
-                return "Running".to_string();
-            }
-        }
-    }
-
-    // Fallback: check system processes for i2pd.exe
-    if find_i2pd_pid().is_some() {
-        return "Running".to_string();
-    }
-
-    "Stopped".to_string()
+fn check_browser_installed(
+    app_handle: tauri::AppHandle,
+) -> bool {
+    !download::browser_needs_install(&app_handle)
 }
 
 #[tauri::command]
-fn open_browser() -> Result<String, String> {
-    launch_librewolf()
+async fn install_browser(
+    app_handle: tauri::AppHandle,
+    window: tauri::Window,
+) -> Result<String, error::AppError> {
+    download::download_browser_if_missing(&app_handle, &window).await?;
+    Ok("Browser installed successfully".to_string())
 }
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
 
 fn main() {
-    // Setup GrayNet environment
-    if let Err(e) = setup_graynet_environment() {
-        eprintln!("Failed to setup GrayNet environment: {}", e);
-        // Continue anyway
+    env_logger::Builder::from_env(
+        env_logger::Env::default().default_filter_or("info")
+    ).init();
+
+    log::info!("GrayNet starting...");
+
+    // ── Single instance protection ────────────────────────────────────────
+    // Читаем lock файл — если есть и процесс с тем PID жив, выходим
+    let lock_path = std::env::temp_dir().join("graynet_running.lock");
+    if lock_path.exists() {
+        if let Ok(pid_str) = std::fs::read_to_string(&lock_path) {
+            if let Ok(pid) = pid_str.trim().parse::<u32>() {
+                let mut sys = sysinfo::System::new();
+                sys.refresh_processes();
+                if sys.process(sysinfo::Pid::from_u32(pid)).is_some() {
+                    log::info!("GrayNet already running (PID {}), exiting", pid);
+                    std::process::exit(0);
+                }
+                // Процесс мёртв — удаляем старый lock
+                log::info!("Stale lock found (PID {}), removing", pid);
+            }
+        }
     }
+    // Записываем наш PID
+    let _ = std::fs::write(&lock_path, std::process::id().to_string());
+    // ─────────────────────────────────────────────────────────────────────
+
+    let tray = SystemTray::new().with_menu(build_tray_menu());
 
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![start_i2pd, stop_i2pd, get_status, open_browser])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
-}
+        .manage(AppState::new())
+        .system_tray(tray)
 
-        
+        .setup(|app| {
+            let handle = app.handle();
+            if let Err(e) = setup::run(&handle) {
+                log::error!("Setup failed: {}", e);
+            }
+            Ok(())
+        })
+
+        .on_system_tray_event(handle_tray_event)
+
+        .on_window_event(|event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event.event() {
+                api.prevent_close();
+                let _ = event.window().hide();
+                log::info!("Window hidden to tray");
+
+                // Показываем уведомление только первый раз
+                let app_handle = event.window().app_handle();
+                let state = app_handle.state::<AppState>();
+                let mut first = state.first_hide.lock().unwrap();
+                if *first {
+                    *first = false;
+                    let _ = app_handle.tray_handle()
+                        .set_tooltip("GrayNet is running. Right-click tray icon → Quit to stop.");
+                }
+            }
+        })
+
+        .invoke_handler(tauri::generate_handler![
+            start_i2pd,
+            stop_i2pd,
+            get_status,
+            open_browser,
+            check_deps,
+            check_browser_installed,
+            install_browser,
+        ])
+
+        .run(tauri::generate_context!())
+        .expect("Fatal: Tauri application crashed");
+}

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GrayNet Launcher</title>
+    <title>GrayNet</title>
     <style>
         :root {
             --bg: #000000;
@@ -14,13 +14,12 @@
             --sub: #636363;
             --accent: #dd188e;
             --accent2: #e960fa;
+            --green: #39d353;
+            --red: #d9534f;
+            --yellow: #e8a838;
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
             font-family: 'Courier New', monospace;
@@ -31,281 +30,521 @@
             align-items: center;
             min-height: 100vh;
             overflow: hidden;
-            position: relative;
         }
 
         #constellation {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: -1;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 0;
         }
 
         .hub {
-            background: rgba(0, 0, 0, 0.50);
+            position: relative;
+            z-index: 1;
+            background: rgba(0, 0, 0, 0.75);
             border: 1px solid var(--border);
             border-radius: 8px;
             padding: 40px;
-            max-width: 500px;
-            width: 100%;
-            box-shadow: 0 0 20px rgba(221, 24, 142, 0.1);
-            backdrop-filter: blur(0px);
+            width: 460px;
+            box-shadow: 0 0 30px rgba(221, 24, 142, 0.1);
+            backdrop-filter: blur(4px);
         }
 
+        /* ── Header ── */
         .header {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 28px;
         }
-
         .title {
-            font-size: 2.5em;
+            font-size: 2.2em;
             font-weight: bold;
             color: var(--accent);
-            margin-bottom: 10px;
-            text-shadow: 0 0 10px var(--accent2);
+            text-shadow: 0 0 12px var(--accent2);
         }
+        .title .white { color: white; }
+        .subtitle { color: var(--sub); font-size: 0.9em; margin-top: 4px; }
 
-        .title .white {
-            color: white;
-        }
-
-        .subtitle {
-            color: var(--sub);
-            font-size: 1.1em;
-        }
-
-        .controls {
+        /* ── Status indicator ── */
+        .status-bar {
             display: flex;
-            flex-direction: column;
-            gap: 15px;
-            margin-bottom: 30px;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            background: var(--panel2);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            margin-bottom: 20px;
+            min-height: 48px;
         }
+        .status-dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            background: var(--sub);
+            transition: background 0.3s;
+        }
+        .status-dot.running  { background: var(--green); box-shadow: 0 0 6px var(--green); }
+        .status-dot.starting { background: var(--yellow); animation: pulse 1s infinite; }
+        .status-dot.stopping { background: var(--yellow); animation: pulse 1s infinite; }
+        .status-dot.error    { background: var(--red); }
+        .status-dot.stopped  { background: var(--sub); }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.3; }
+        }
+
+        .status-text { flex: 1; }
+        .status-label { font-size: 0.85em; color: var(--sub); }
+        .status-message { font-size: 0.95em; }
+
+        /* ── Dependency warning banner ── */
+        .dep-warning {
+            display: none;
+            padding: 10px 14px;
+            background: rgba(217, 83, 79, 0.1);
+            border: 1px solid var(--red);
+            border-radius: 4px;
+            margin-bottom: 16px;
+            font-size: 0.85em;
+            color: var(--red);
+        }
+        .dep-warning.visible { display: block; }
+        .dep-warning ul { margin-top: 4px; padding-left: 16px; }
+
+        /* ── I2P info banner (replaces alert()) ── */
+        .info-banner {
+            padding: 10px 14px;
+            background: rgba(221, 24, 142, 0.07);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-size: 0.82em;
+            color: var(--sub);
+            line-height: 1.5;
+        }
+
+        /* ── Buttons ── */
+        .controls { display: flex; flex-direction: column; gap: 10px; }
 
         .btn {
             background: var(--panel2);
             border: 1px solid var(--border);
             color: var(--text);
-            padding: 12px 24px;
+            padding: 11px 20px;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 1em;
+            font-size: 0.95em;
             font-family: inherit;
-            transition: all 0.2s ease;
+            transition: all 0.15s ease;
             text-transform: uppercase;
             letter-spacing: 1px;
         }
-
-        .btn:hover {
+        .btn:hover:not(:disabled) {
             border-color: var(--accent);
-            box-shadow: 0 0 10px rgba(221, 24, 142, 0.3);
+            box-shadow: 0 0 10px rgba(221, 24, 142, 0.2);
         }
-
-        .btn.accent {
+        .btn.primary {
             background: var(--accent);
-            color: var(--bg);
+            color: #000;
+            border-color: var(--accent);
         }
-
-        .btn.accent:hover {
+        .btn.primary:hover:not(:disabled) {
             background: var(--accent2);
-            box-shadow: 0 0 15px rgba(233, 96, 250, 0.5);
+            border-color: var(--accent2);
+            box-shadow: 0 0 14px rgba(233, 96, 250, 0.4);
         }
-
-        .btn.danger {
-            border-color: #d9534f;
+        .btn.danger:hover:not(:disabled) {
+            border-color: var(--red);
+            box-shadow: 0 0 10px rgba(217, 83, 79, 0.2);
         }
-
-        .btn.danger:hover {
-            border-color: #c9302c;
-            box-shadow: 0 0 10px rgba(217, 83, 79, 0.3);
-        }
-
         .btn:disabled {
-            opacity: 0.5;
+            opacity: 0.35;
             cursor: not-allowed;
         }
 
-        .status {
+        .btn-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        /* ── Uptime ── */
+        .uptime {
             text-align: center;
-            padding: 15px;
+            font-size: 0.8em;
+            color: var(--sub);
+            margin-top: 14px;
+            min-height: 18px;
+        }
+
+        /* ── First-run setup screen ── */
+        .setup-screen {
+            display: none;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .setup-screen.visible { display: flex; }
+        .main-screen { display: flex; flex-direction: column; gap: 0; }
+        .main-screen.hidden { display: none; }
+
+        .setup-title {
+            font-size: 1.1em;
+            color: var(--text);
+            font-weight: bold;
+            text-align: center;
+        }
+        .setup-subtitle {
+            color: var(--sub);
+            font-size: 0.82em;
+            text-align: center;
+            line-height: 1.5;
+        }
+        .progress-wrap {
             background: var(--panel2);
             border: 1px solid var(--border);
             border-radius: 4px;
-            font-weight: bold;
-            color: var(--accent);
+            padding: 14px 16px;
         }
-
-        .status.error {
-            color: #d9534f;
+        .progress-stage {
+            font-size: 0.8em;
+            color: var(--sub);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
+        .progress-bar-bg {
+            background: var(--panel);
+            border-radius: 2px;
+            height: 6px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--accent2));
+            border-radius: 2px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+        .progress-message {
+            font-size: 0.82em;
+            color: var(--sub);
+        }
+        .btn-install {
+            background: var(--accent);
+            color: #000;
+            border: none;
+            padding: 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.95em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.15s;
+        }
+        .btn-install:hover:not(:disabled) {
+            background: var(--accent2);
+            box-shadow: 0 0 14px rgba(233,96,250,0.4);
+        }
+        .btn-install:disabled { opacity: 0.4; cursor: not-allowed; }
     </style>
 </head>
 <body>
     <canvas id="constellation"></canvas>
+
     <div class="hub">
         <div class="header">
-            <div class="title"><span class="white">Gray</span>Net Launcher</div>
-            <div class="subtitle">I2P Network Control Center</div>
+            <div class="title"><span class="white">Gray</span>Net</div>
+            <div class="subtitle">I2P Network Launcher</div>
+        </div>
+
+
+        <!-- First-run setup screen — показывается если LibreWolf не установлен -->
+        <div id="setupScreen" class="setup-screen">
+            <div class="setup-title">Browser Setup Required</div>
+            <div class="setup-subtitle">
+                GrayNet needs LibreWolf browser to access the I2P network.<br>
+                It will be downloaded from the official LibreWolf website.
+            </div>
+            <div class="progress-wrap">
+                <div id="progressStage" class="progress-stage">Ready</div>
+                <div class="progress-bar-bg">
+                    <div id="progressFill" class="progress-bar-fill"></div>
+                </div>
+                <div id="progressMessage" class="progress-message">Click Install to begin</div>
+            </div>
+            <button id="installBtn" class="btn-install">⬇ Install Browser</button>
+        </div>
+
+        <!-- Основной экран — скрыт пока браузер не установлен -->
+        <div id="mainScreen" class="main-screen">
+        <!-- Показывается если i2pd или браузер не найдены -->
+        <div id="depWarning" class="dep-warning">
+            <strong>Missing components:</strong>
+            <ul id="depList"></ul>
+        </div>
+
+        <!-- Вместо alert() при загрузке -->
+        <div class="info-banner">
+            ⚡ After starting I2P, wait 2–5 minutes before accessing .i2p sites — 
+            the daemon needs time to integrate into the network.
+        </div>
+
+        <!-- Статус демона -->
+        <div class="status-bar">
+            <div id="statusDot" class="status-dot stopped"></div>
+            <div class="status-text">
+                <div class="status-label">I2P DAEMON</div>
+                <div id="statusMessage" class="status-message">Not running</div>
+            </div>
         </div>
 
         <div class="controls">
-            <button id="startBtn" class="btn accent">Start I2P</button>
-            <button id="stopBtn" class="btn danger">Stop I2P</button>
-            <button id="refreshBtn" class="btn">Refresh Status</button>
-            <button id="browserBtn" class="btn">Open Browser</button>
+            <div class="btn-row">
+                <button id="startBtn" class="btn primary">▶ Start I2P</button>
+                <button id="stopBtn"  class="btn danger"  disabled>■ Stop I2P</button>
+            </div>
+            <button id="browserBtn" class="btn">Open I2P Browser</button>
         </div>
 
-        <div id="status" class="status">Status: Initializing...</div>
+        <div id="uptime" class="uptime"></div>
+        </div><!-- /mainScreen -->
     </div>
 
     <script>
         const { invoke } = window.__TAURI__.tauri;
 
-        const startBtn = document.getElementById('startBtn');
-        const stopBtn = document.getElementById('stopBtn');
-        const refreshBtn = document.getElementById('refreshBtn');
-        const browserBtn = document.getElementById('browserBtn');
-        const statusDiv = document.getElementById('status');
 
-        async function updateStatus() {
-            try {
-                const status = await invoke('get_status');
-                statusDiv.textContent = `Status: ${status}`;
-                statusDiv.classList.remove('error');
-                startBtn.disabled = status === 'Running';
-                stopBtn.disabled = status === 'Stopped';
-            } catch (error) {
-                console.error('Error getting status:', error);
-                statusDiv.textContent = 'Status: Error';
-                statusDiv.classList.add('error');
+        // ── First-run setup ───────────────────────────────────────────────────
+        const setupScreen = document.getElementById('setupScreen');
+        const mainScreen  = document.getElementById('mainScreen');
+        const installBtn  = document.getElementById('installBtn');
+        const progressFill    = document.getElementById('progressFill');
+        const progressStage   = document.getElementById('progressStage');
+        const progressMessage = document.getElementById('progressMessage');
+
+        async function checkBrowserInstalled() {
+            const installed = await invoke('check_browser_installed');
+            if (installed) {
+                setupScreen.classList.remove('visible');
+                mainScreen.classList.remove('hidden');
+            } else {
+                setupScreen.classList.add('visible');
+                mainScreen.classList.add('hidden');
             }
         }
 
-        startBtn.addEventListener('click', async () => {
+        // Слушаем события прогресса от Rust
+        // window.__TAURI__.event.listen — подписка на кастомные события
+        window.__TAURI__.event.listen('browser-setup-progress', (event) => {
+            const { stage, percent, message } = event.payload;
+            progressStage.textContent = stage.toUpperCase();
+            progressFill.style.width = percent + '%';
+            progressMessage.textContent = message;
+        });
+
+        installBtn.addEventListener('click', async () => {
+            installBtn.disabled = true;
+            installBtn.textContent = 'Installing...';
+            progressStage.textContent = 'STARTING';
+            progressMessage.textContent = 'Connecting to LibreWolf servers...';
+
             try {
-                const result = await invoke('start_i2pd');
-                statusDiv.textContent = `Status: ${result}`;
-                statusDiv.classList.remove('error');
-                updateStatus();
-            } catch (error) {
-                statusDiv.textContent = `Status: Error - ${error}`;
-                statusDiv.classList.add('error');
-                console.error(error);
+                await invoke('install_browser');
+                // Установка завершена — переходим на главный экран
+                setupScreen.classList.remove('visible');
+                mainScreen.classList.remove('hidden');
+                checkDeps();
+                refreshStatus();
+            } catch (err) {
+                progressStage.textContent = 'ERROR';
+                progressMessage.textContent = 'Failed: ' + err;
+                installBtn.disabled = false;
+                installBtn.textContent = '⬇ Retry';
             }
+        });
+
+        // Проверяем при загрузке
+        checkBrowserInstalled();
+
+        // ── DOM refs ─────────────────────────────────────────────────────────
+        const startBtn      = document.getElementById('startBtn');
+        const stopBtn       = document.getElementById('stopBtn');
+        const browserBtn    = document.getElementById('browserBtn');
+        const statusDot     = document.getElementById('statusDot');
+        const statusMessage = document.getElementById('statusMessage');
+        const uptimeEl      = document.getElementById('uptime');
+        const depWarning    = document.getElementById('depWarning');
+        const depList       = document.getElementById('depList');
+
+        // ── Status management ─────────────────────────────────────────────────
+        // Статусы из Rust DaemonStatus enum (lowercase из serde rename)
+        const STATUS = {
+            stopped:  'stopped',
+            starting: 'starting',
+            running:  'running',
+            stopping: 'stopping',
+            error:    'error',
+        };
+
+        function applyStatus(status, message, uptime_secs) {
+            // Обновляем dot
+            statusDot.className = 'status-dot ' + (status.toLowerCase?.() || STATUS.stopped);
+            statusMessage.textContent = message;
+
+            const isRunning  = status === STATUS.running;
+            const isStarting = status === STATUS.starting || status === STATUS.stopping;
+
+            startBtn.disabled  = isRunning || isStarting;
+            stopBtn.disabled   = !isRunning;
+            browserBtn.disabled = !isRunning;
+
+            // Uptime
+            if (uptime_secs != null) {
+                const m = Math.floor(uptime_secs / 60);
+                const s = uptime_secs % 60;
+                uptimeEl.textContent = `Uptime: ${m}m ${s}s`;
+            } else {
+                uptimeEl.textContent = '';
+            }
+        }
+
+        async function refreshStatus() {
+            try {
+                // get_status возвращает StatusResponse { status, uptime_secs, message }
+                const resp = await invoke('get_status');
+                // resp.status может быть строкой "running" или объектом { "error": "..." }
+                const statusStr = typeof resp.status === 'object'
+                    ? 'error'
+                    : resp.status;
+                applyStatus(statusStr, resp.message, resp.uptime_secs);
+            } catch (err) {
+                applyStatus(STATUS.error, `Error: ${err}`, null);
+            }
+        }
+
+        // ── Button handlers ───────────────────────────────────────────────────
+        startBtn.addEventListener('click', async () => {
+            applyStatus(STATUS.starting, 'Starting...', null);
+            try {
+                await invoke('start_i2pd');
+            } catch (err) {
+                applyStatus(STATUS.error, `Failed to start: ${err}`, null);
+                return;
+            }
+            refreshStatus();
         });
 
         stopBtn.addEventListener('click', async () => {
+            applyStatus(STATUS.stopping, 'Stopping...', null);
             try {
-                const result = await invoke('stop_i2pd');
-                statusDiv.textContent = `Status: ${result}`;
-                statusDiv.classList.remove('error');
-                updateStatus();
-            } catch (error) {
-                statusDiv.textContent = `Status: Error - ${error}`;
-                statusDiv.classList.add('error');
-                console.error(error);
+                await invoke('stop_i2pd');
+            } catch (err) {
+                applyStatus(STATUS.error, `Failed to stop: ${err}`, null);
+                return;
             }
+            refreshStatus();
         });
-
-        refreshBtn.addEventListener('click', updateStatus);
 
         browserBtn.addEventListener('click', async () => {
             try {
-                const result = await invoke('open_browser');
-                alert(result);
-            } catch (error) {
-                alert('Error: ' + error);
+                await invoke('open_browser');
+            } catch (err) {
+                // Показываем ошибку в статусе, не в alert()
+                applyStatus(STATUS.error, `Browser error: ${err}`, null);
             }
         });
 
-        // Constellation Effect
+        // ── Dependency check on load ──────────────────────────────────────────
+        async function checkDeps() {
+            try {
+                const deps = await invoke('check_deps');
+                if (deps.missing && deps.missing.length > 0) {
+                    depWarning.classList.add('visible');
+                    depList.innerHTML = deps.missing
+                        .map(m => `<li>${m}</li>`)
+                        .join('');
+                    // Блокируем кнопки если i2pd не найден
+                    if (!deps.i2pd_found) {
+                        startBtn.disabled = true;
+                        startBtn.title = 'i2pd binary not found';
+                    }
+                }
+            } catch (e) {
+                console.warn('dep check failed:', e);
+            }
+        }
+
+        // ── Polling ───────────────────────────────────────────────────────────
+        // Обновляем статус каждые 3 секунды — автоматически подхватит если i2pd крашнулся
+        setInterval(refreshStatus, 3000);
+
+        // ── Init ──────────────────────────────────────────────────────────────
+        checkDeps();
+        refreshStatus();
+
+        // ── Constellation background (без изменений) ──────────────────────────
         const canvas = document.getElementById('constellation');
         const ctx = canvas.getContext('2d');
         let particles = [];
-        const particleCount = 100;
-        const maxDistance = 120;
+        const PARTICLE_COUNT = 80;
+        const MAX_DIST = 110;
 
-        function resizeCanvas() {
-            canvas.width = window.innerWidth;
+        function resize() {
+            canvas.width  = window.innerWidth;
             canvas.height = window.innerHeight;
         }
 
-        function createParticles() {
-            particles = [];
-            for (let i = 0; i < particleCount; i++) {
-                particles.push({
-                    x: Math.random() * canvas.width,
-                    y: Math.random() * canvas.height,
-                    vx: (Math.random() - 0.5) * 0.5,
-                    vy: (Math.random() - 0.5) * 0.5,
-                    size: Math.random() * 2 + 1
-                });
-            }
+        function initParticles() {
+            particles = Array.from({ length: PARTICLE_COUNT }, () => ({
+                x:    Math.random() * canvas.width,
+                y:    Math.random() * canvas.height,
+                vx:   (Math.random() - 0.5) * 0.4,
+                vy:   (Math.random() - 0.5) * 0.4,
+                size: Math.random() * 1.5 + 0.5,
+            }));
         }
 
-        function updateParticles() {
-            particles.forEach(p => {
-                p.x += p.vx;
-                p.y += p.vy;
-
-                if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
-                if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
-            });
-        }
-
-        function drawParticles() {
+        function tick() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Draw lines
-            ctx.strokeStyle = 'rgba(221, 24, 142, 0.1)';
-            ctx.lineWidth = 1;
             for (let i = 0; i < particles.length; i++) {
-                for (let j = i + 1; j < particles.length; j++) {
-                    const dx = particles[i].x - particles[j].x;
-                    const dy = particles[i].y - particles[j].y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                if (p.x < 0 || p.x > canvas.width)  p.vx *= -1;
+                if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
 
-                    if (distance < maxDistance) {
+                for (let j = i + 1; j < particles.length; j++) {
+                    const q = particles[j];
+                    const dx = p.x - q.x, dy = p.y - q.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    if (dist < MAX_DIST) {
+                        ctx.strokeStyle = `rgba(221, 24, 142, ${0.12 * (1 - dist / MAX_DIST)})`;
+                        ctx.lineWidth = 0.8;
                         ctx.beginPath();
-                        ctx.moveTo(particles[i].x, particles[i].y);
-                        ctx.lineTo(particles[j].x, particles[j].y);
+                        ctx.moveTo(p.x, p.y);
+                        ctx.lineTo(q.x, q.y);
                         ctx.stroke();
                     }
                 }
-            }
 
-            // Draw particles
-            ctx.fillStyle = 'rgba(221, 24, 142, 0.8)';
-            particles.forEach(p => {
+                ctx.fillStyle = 'rgba(221, 24, 142, 0.7)';
                 ctx.beginPath();
                 ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
                 ctx.fill();
-            });
+            }
+
+            requestAnimationFrame(tick);
         }
 
-        function animate() {
-            updateParticles();
-            drawParticles();
-            requestAnimationFrame(animate);
-        }
-
-        window.addEventListener('resize', () => {
-            resizeCanvas();
-            createParticles();
-        });
-
-        resizeCanvas();
-        createParticles();
-        animate();
-
-        // Initial status update
-        updateStatus();
-
-        // Show I2P warning on load
-        window.addEventListener('load', () => {
-            alert("I2P traffic may take several minutes to initialize. Please wait before accessing .i2p sites.");
-        });
+        window.addEventListener('resize', () => { resize(); initParticles(); });
+        resize();
+        initParticles();
+        tick();
     </script>
 </body>
 </html>
