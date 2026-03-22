@@ -34,7 +34,9 @@
         "bin/i2pd.exe",
         "config/i2pd.conf",
         "config/tunnels.conf",
-        "extensions/noscript.xpi"
+        "config/addresses.csv",
+        "extensions/noscript.xpi",
+        "config/zones.txt"
       ],
 
       "windows": {
