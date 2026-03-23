@@ -38,7 +38,7 @@ GrayNet is a custom I2P ecosystem built on top of i2pd (the C++ I2P implementati
 1. Download `GrayNet_x64-setup.exe` from the [releases page](https://github.com/vialolis/GrayNet/releases)
 2. Run the installer
 3. Launch GrayNet from the desktop shortcut
-4. Click **Install Browser** on first run — LibreWolf will download automatically (~85 MB)
+4. Click **Install Browser** on first run — LibreWolf will download automatically (~105 MB)
 5. Click **Start I2P**
 6. Wait 2–5 minutes for the daemon to integrate into the network
 7. Click **Open I2P Browser**
@@ -79,7 +79,7 @@ GrayNet uses a patched version of i2pd that supports `.gn` domains. Resolution i
 
 ## Configuration
 
-All data is stored in `%APPDATA%\GrayNet\`:
+All data is stored in `%LOCALAPPDATA%\GrayNet\`:
 
 
 GrayNet
