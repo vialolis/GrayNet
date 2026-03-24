@@ -59,6 +59,16 @@ GrayNet is a custom I2P ecosystem built on top of i2pd (the C++ I2P implementati
 
 ---
 
+## Useful I2P Sites
+| Site | Address | Description |
+|------|---------|-------------|
+| notbob | `notbob.i2p` | Directory of active eepsites with uptime stats |
+| reg.i2p | `reg.i2p` | I2P address book registration |
+| zzz.i2p | `zzz.i2p` | I2P development forum |
+| stats.i2p | `stats.i2p` | I2P network statistics |
+| identiguy | `identiguy.i2p` | Eepsite directory with uptime monitoring |
+| git.idk.i2p | `git.idk.i2p` | I2P git hosting |
+
 ## Architecture
 
 
