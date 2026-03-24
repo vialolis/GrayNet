@@ -56,7 +56,6 @@ GrayNet is a custom I2P ecosystem built on top of i2pd (the C++ I2P implementati
 | GrayNet Hub | `hub.gn` | Central portal |
 | GrayNet Forum | `forum.hub.gn` | Community forum (Work in progress!)|
 | GrayNet on I2P | `graynet.i2p` | Main site |
-| Stats | `stats.i2p` | I2P network statistics |
 
 ---
 
