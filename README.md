@@ -113,6 +113,12 @@ proxy.pac
 
 ---
 
+## Support
+
+Monero(XMR) - 49Gg5E94th11QCXiqeFABNgucYMifBL7n4BgZdiCohx3KLCNWd7g7qE2pcz2vgMaNhidbSegSUqrPQusMUZ48obgH5UADke
+
+---
+
 ## License
 
 GrayNet launcher — BSD 3-Clause  
