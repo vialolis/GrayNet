@@ -262,7 +262,6 @@
         </div>
 
 
-        <!-- First-run setup screen — показывается если LibreWolf не установлен -->
         <div id="setupScreen" class="setup-screen">
             <div class="setup-title">Browser Setup Required</div>
             <div class="setup-subtitle">
@@ -279,21 +278,17 @@
             <button id="installBtn" class="btn-install">⬇ Install Browser</button>
         </div>
 
-        <!-- Основной экран — скрыт пока браузер не установлен -->
         <div id="mainScreen" class="main-screen">
-        <!-- Показывается если i2pd или браузер не найдены -->
         <div id="depWarning" class="dep-warning">
             <strong>Missing components:</strong>
             <ul id="depList"></ul>
         </div>
 
-        <!-- Вместо alert() при загрузке -->
         <div class="info-banner">
             ⚡ After starting I2P, wait 2–5 minutes before accessing .i2p sites — 
             the daemon needs time to integrate into the network.
         </div>
 
-        <!-- Статус демона -->
         <div class="status-bar">
             <div id="statusDot" class="status-dot stopped"></div>
             <div class="status-text">
@@ -337,8 +332,6 @@
             }
         }
 
-        // Слушаем события прогресса от Rust
-        // window.__TAURI__.event.listen — подписка на кастомные события
         window.__TAURI__.event.listen('browser-setup-progress', (event) => {
             const { stage, percent, message } = event.payload;
             progressStage.textContent = stage.toUpperCase();
@@ -354,7 +347,6 @@
 
             try {
                 await invoke('install_browser');
-                // Установка завершена — переходим на главный экран
                 setupScreen.classList.remove('visible');
                 mainScreen.classList.remove('hidden');
                 checkDeps();
@@ -367,7 +359,6 @@
             }
         });
 
-        // Проверяем при загрузке
         checkBrowserInstalled();
 
         // ── DOM refs ─────────────────────────────────────────────────────────
@@ -381,7 +372,6 @@
         const depList       = document.getElementById('depList');
 
         // ── Status management ─────────────────────────────────────────────────
-        // Статусы из Rust DaemonStatus enum (lowercase из serde rename)
         const STATUS = {
             stopped:  'stopped',
             starting: 'starting',
@@ -391,7 +381,6 @@
         };
 
         function applyStatus(status, message, uptime_secs) {
-            // Обновляем dot
             statusDot.className = 'status-dot ' + (status.toLowerCase?.() || STATUS.stopped);
             statusMessage.textContent = message;
 
@@ -414,9 +403,7 @@
 
         async function refreshStatus() {
             try {
-                // get_status возвращает StatusResponse { status, uptime_secs, message }
                 const resp = await invoke('get_status');
-                // resp.status может быть строкой "running" или объектом { "error": "..." }
                 const statusStr = typeof resp.status === 'object'
                     ? 'error'
                     : resp.status;
@@ -453,7 +440,6 @@
             try {
                 await invoke('open_browser');
             } catch (err) {
-                // Показываем ошибку в статусе, не в alert()
                 applyStatus(STATUS.error, `Browser error: ${err}`, null);
             }
         });
@@ -467,7 +453,6 @@
                     depList.innerHTML = deps.missing
                         .map(m => `<li>${m}</li>`)
                         .join('');
-                    // Блокируем кнопки если i2pd не найден
                     if (!deps.i2pd_found) {
                         startBtn.disabled = true;
                         startBtn.title = 'i2pd binary not found';
@@ -479,14 +464,13 @@
         }
 
         // ── Polling ───────────────────────────────────────────────────────────
-        // Обновляем статус каждые 3 секунды — автоматически подхватит если i2pd крашнулся
         setInterval(refreshStatus, 3000);
 
         // ── Init ──────────────────────────────────────────────────────────────
         checkDeps();
         refreshStatus();
 
-        // ── Constellation background (без изменений) ──────────────────────────
+        // ── Constellation background ──────────────────────────
         const canvas = document.getElementById('constellation');
         const ctx = canvas.getContext('2d');
         let particles = [];

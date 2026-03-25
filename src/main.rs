@@ -20,7 +20,7 @@ use tauri::{
 };
 use state::AppState;
 
-// ─── Tauri команды ────────────────────────────────────────────────────────────
+// ─── Tauri ────────────────────────────────────────────────────────────
 
 #[tauri::command]
 fn start_i2pd(
@@ -97,7 +97,6 @@ fn handle_tray_event(app: &tauri::AppHandle, event: SystemTrayEvent) {
                 }
                 *lock = None;
                 drop(lock);
-                // Удаляем lock файл при выходе
                 let lock_path = std::env::temp_dir().join("graynet_running.lock");
                 let _ = std::fs::remove_file(&lock_path);
                 std::process::exit(0);
@@ -143,7 +142,6 @@ fn main() {
     log::info!("GrayNet starting...");
 
     // ── Single instance protection ────────────────────────────────────────
-    // Читаем lock файл — если есть и процесс с тем PID жив, выходим
     let lock_path = std::env::temp_dir().join("graynet_running.lock");
     if lock_path.exists() {
         if let Ok(pid_str) = std::fs::read_to_string(&lock_path) {
@@ -154,12 +152,10 @@ fn main() {
                     log::info!("GrayNet already running (PID {}), exiting", pid);
                     std::process::exit(0);
                 }
-                // Процесс мёртв — удаляем старый lock
                 log::info!("Stale lock found (PID {}), removing", pid);
             }
         }
     }
-    // Записываем наш PID
     let _ = std::fs::write(&lock_path, std::process::id().to_string());
     // ─────────────────────────────────────────────────────────────────────
 
@@ -185,7 +181,6 @@ fn main() {
                 let _ = event.window().hide();
                 log::info!("Window hidden to tray");
 
-                // Показываем уведомление только первый раз
                 let app_handle = event.window().app_handle();
                 let state = app_handle.state::<AppState>();
                 let mut first = state.first_hide.lock().unwrap();
