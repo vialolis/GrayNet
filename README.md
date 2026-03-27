@@ -73,7 +73,7 @@ GrayNet is a custom I2P ecosystem built on top of i2pd (the C++ I2P implementati
 
 
 GrayNet Launcher (Tauri + Rust)
-├── i2pd.exe — I2P daemon (background)
+├── i2pd.exe — I2P daemon (background) - https://github.com/vialolis/i2pd_graynet
 ├── LibreWolf — downloaded on first run
 │ ├── proxy.pac — routes .i2p/.gn via proxy (port 4444)
 │ └── prefs.js — disables WebRTC, telemetry, DoH
