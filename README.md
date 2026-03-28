@@ -1,8 +1,16 @@
+<p align="center">
+  <img src=".github/assets/logo.png" width="400"/>
+</p>
+
 # GrayNet
 
 **One-click launcher for the I2P anonymous network.**
 
 GrayNet provides a simple way to access the I2P network with minimal setup. Install, click Connect, and the environment is configured automatically.
+
+<p align="center">
+  <img src=".github/assets/launcher.png" width="400"/>
+</p>
 
 ---
 
