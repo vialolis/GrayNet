@@ -32,7 +32,7 @@ GrayNet is a custom I2P ecosystem built on top of i2pd (the C++ I2P implementati
 
 - 🚀 **Minimal setup** — works out of the box in most cases
 - 🌐 **Bundled i2pd** — no separate installation needed
-- 🦊 **Auto-downloads LibreWolf** — privacy-focused browser, configured for I2P on first run (~85 MB)
+- 🦊 **Auto-downloads LibreWolf** — privacy-focused browser, configured for I2P on first run (~105 MB)
 - 🔒 **Pre-configured proxy** — `.i2p` and `.gn` traffic routed through i2pd, other traffic goes direct
 - 📋 **Bundled address book** — popular `.i2p` sites available immediately
 - 🔕 **Silent daemon** — i2pd runs in background without console window
