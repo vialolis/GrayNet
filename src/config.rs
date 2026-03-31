@@ -11,16 +11,8 @@ fn i2pd_binary_name() -> &'static str {
 }
 
 pub fn graynet_data_dir() -> AppResult<PathBuf> {
-    if let Ok(exe) = std::env::current_exe() {
-        if let Some(exe_dir) = exe.parent() {
-            let local_data = exe_dir.to_path_buf();
-            if local_data.exists() {
-                return Ok(local_data);
-            }
-        }
-    }
-    dirs::data_dir()
-        .ok_or_else(|| AppError::Other("Could not find system data directory".to_string()))
+    dirs::data_local_dir()
+        .ok_or_else(|| AppError::Other("Could not find AppData\\Local".to_string()))
         .map(|d| d.join("GrayNet"))
 }
 

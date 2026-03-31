@@ -1,6 +1,6 @@
 [package]
 name = "graynet"
-version = "0.1.0"
+version = "0.1.1"
 description = "GrayNet - I2P Network Launcher"
 authors = ["vialolis"]
 edition = "2021"

@@ -17,7 +17,7 @@ pub struct AppState {
 
     pub daemon_status: Mutex<DaemonStatus>,
 
-    pub first_hide: Mutex<bool>,
+    //pub first_hide: Mutex<bool>,
     pub started_at: Mutex<Option<Instant>>,
 }
 
@@ -26,7 +26,7 @@ impl AppState {
         Self {
             i2pd_process: Mutex::new(None),
             daemon_status: Mutex::new(DaemonStatus::Stopped),
-            first_hide: Mutex::new(true),
+            //first_hide: Mutex::new(true),
             started_at: Mutex::new(None),
         }
     }

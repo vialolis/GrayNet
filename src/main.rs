@@ -181,14 +181,14 @@ fn main() {
                 let _ = event.window().hide();
                 log::info!("Window hidden to tray");
 
-                let app_handle = event.window().app_handle();
-                let state = app_handle.state::<AppState>();
-                let mut first = state.first_hide.lock().unwrap();
-                if *first {
+                //let app_handle = event.window().app_handle();
+                //let state = app_handle.state::<AppState>();
+                //let first = state.first_hide.lock().unwrap();
+                /*if *first {
                     *first = false;
                     let _ = app_handle.tray_handle()
                         .set_tooltip("GrayNet is running. Right-click tray icon → Quit to stop.");
-                }
+                }*/
             }
         })
 

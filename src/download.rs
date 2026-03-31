@@ -1,9 +1,9 @@
-use std::io::{Read, Write};
+//use std::io::{Read, Write};
+use std::io::{Write};
 use std::path::PathBuf;
 use futures_util::StreamExt;
 use crate::error::{AppError, AppResult};
 
-const LIBREWOLF_VERSION: &str = "146.0.1-1";
 const LIBREWOLF_PORTABLE_URL: &str =
     "https://gitlab.com/api/v4/projects/44042130/packages/generic/librewolf/146.0.1-1/librewolf-146.0.1-1-windows-x86_64-portable.zip";
 
